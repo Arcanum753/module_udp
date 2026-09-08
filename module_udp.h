@@ -35,11 +35,18 @@ Please Wait....Configuring.
 #define UDP_BROADCAST_POWERON       true
 #define UDP_BROADCAST_RESPONSE       true
 
+// Сколько подряд неподтверждённых unicast-телеметрий серверу нужно пропустить,
+// чтобы устройство вернулось к бродкастам (discover/fallback).
+#define UDP_MISS_LIMIT_DFLT     2
+#define UDP_MISS_LIMIT_MIN      1
+#define UDP_MISS_LIMIT_MAX      10
+
 typedef struct {
     String keyword;
     uint16_t udpPortTx;
     uint16_t udpPortRx;
     uint16_t udpTimeOut;
+    uint8_t  udpMissLimit;
     bool  udpPowerOn;
     bool  udpResponse;
 } strUdpConfig;
@@ -48,7 +55,8 @@ void broadcastSimple(void);
 void broadcastTimer(void);
 
 void processListenPacket(AsyncUDPPacket &packet);
-void responseHandler(void);
+void responseHandler(IPAddress serverIp);
+void serverHeard(IPAddress serverIp);
 
 class CLASS_MODULE_UDPBROADCAST {
 public:
@@ -60,6 +68,7 @@ public:
     // Публичное API
     void stop();
     void broadcastSend(uint16_t _port, String _str);
+    void unicastSend(IPAddress ip, uint16_t _port, String _str);
     void broadcastTest(AsyncWebServerRequest *request);
 
     uint16_t getPortTx();
@@ -70,6 +79,12 @@ public:
     bool responseGet();
     String jsonGet();
     uint8_t isStart();
+
+    // Статус связи с сервером
+    bool serverOnlineGet()          { return _serverOnline; }
+    IPAddress serverIpGet()         { return _serverIp; }
+    uint32_t lastContactMsGet()     { return _lastContactMs; }
+    String serverTimeStr();
 
     strUdpConfig _udpConfig; // UDP configuration
 
@@ -83,6 +98,7 @@ private:
     // Веб-обработчики
     void send_configuration_values_html(AsyncWebServerRequest *request);
     void get_configuration_html(AsyncWebServerRequest *request);
+    void send_status_values_html(AsyncWebServerRequest *request);
 
     // Конфиг
     bool load_config_UDP();
@@ -102,9 +118,20 @@ private:
     uint16_t _portRx;
     uint16_t _portTx;
 
+    // Состояние связи с сервером (unicast-режим)
+    IPAddress _serverIp;
+    bool _serverOnline;
+    uint32_t _lastContactMs;      // millis() последнего ACK/probe от сервера
+    uint32_t _lastContactEpoch;   // Unix-время контакта (если NTP синхронизирован)
+    uint8_t _missCount;           // подряд пропущенных ответов сервера
+    bool _awaitAck;               // ждём ACK на отправленную unicast-телеметрию
+
+    void resetServerState();
+
     friend void broadcastTimer();
     friend void processListenPacket(AsyncUDPPacket &packet);
-    friend void responseHandler(void);
+    friend void responseHandler(IPAddress serverIp);
+    friend void serverHeard(IPAddress serverIp);
     friend void broadcastSimple(void);
 };
 

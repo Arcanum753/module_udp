@@ -21,9 +21,20 @@
                 <tr><td class="label">Udp broadcast every ... minute (0 is off)</td>    <td><input type="number" id="udptime" name="udptime"  min="0" max="60" value=""  onkeyup=setMinMax();></td></tr>
                 <tr><td class="label">Udp broadcast on WiFi connect:</td> <td> <input type="checkbox" id="udppoweron" name="udppoweron"></td>  </tr>
                 <tr><td class="label">Udp response on UDP broadcast witn keyword:</td> <td> <input type="checkbox" id="udpresponse" name="udpresponse"></td>  </tr>
+                <tr><td class="label">Missed server replies before broadcast (1-10):</td> <td><input type="number" id="udpmisslimit" name="udpmisslimit" min="1" max="10" value=""></td></tr>
                 <tr><td colspan="2" style="text-align: center; padding: 8px;"> <input type="submit" value="Save" class="button-prog"></td></tr>
             </table>
         </form>
+    </div>
+
+    <div class="content" style="text-align: center;">
+        <table class="scan" style="width: auto; margin: 0 auto;">
+            <tr><th colspan="2">Server Status</th></tr>
+            <tr><td class="label">Server online</td>     <td><span id="udpserveronline">-</span></td></tr>
+            <tr><td class="label">Server IP</td>         <td><span id="udpserverip">-</span></td></tr>
+            <tr><td class="label">Last contact</td>      <td><span id="udpservertime">-</span></td></tr>
+            <tr><td class="label">Telemetry mode</td>    <td><span id="udpmode">-</span></td></tr>
+        </table>
     </div>
 
     <div class="content" style="text-align: center;">
@@ -52,8 +63,24 @@
 					.then(() => ApplyCVT("/udp/info"))
 					.then(() => ApplyCVT("/udp/ver"));
 			}, 500);
-			
+			updateUdpStatus();
+			setInterval(updateUdpStatus, 5000);
 		};
+
+		async function updateUdpStatus() {
+			try {
+				const resp = await fetch('/udp/status');
+				const text = await resp.text();
+				const lines = text.split('\n');
+				for (const line of lines) {
+					const parts = line.split('|');
+					if (parts.length >= 2) {
+						const el = document.getElementById(parts[0]);
+						if (el) el.innerText = parts[1];
+					}
+				}
+			} catch(e) {}
+		}
 
 		function udpTxTest(){
             const xhr = new XMLHttpRequest();
