@@ -32,9 +32,43 @@ uint8_t CLASS_MODULE_UDPBROADCAST::isStart()          { return _isStarted; }
 // ========== STOP ==========
 void CLASS_MODULE_UDPBROADCAST::stop() {
     DEBUGUDP("%s\r\n", __FUNCTION__);
-    _isStarted = false;
     _serverOnline = false;
+    if (_isStarted == false) { return; }
+    _isStarted = false;
     _udp.close();
+}
+
+// ========== START SOCKET ==========
+// Поднятие сокета по событию Wi-Fi (core_wifi). Конфиг уже загружен в begin().
+bool CLASS_MODULE_UDPBROADCAST::startSocket() {
+    DEBUGUDP("%s\r\n", __FUNCTION__);
+    if (_isStarted) { return true; }
+
+    _portRx = _udpConfig.udpPortRx;
+
+    if (_udp.listen(_portRx) == true) {
+        DEBUGUDP("UDP Listening on IP: %s and port %u\n\r",
+                 WiFi.localIP().toString().c_str(), _portRx);
+        _isStarted = true;
+        resetServerState();
+        _udp.onPacket(processListenPacket);
+        SetTimerTask(broadcastTimer, SEC * MINUTES * getTimeOut());
+        _cfgDirty = false;
+        return true;
+    }
+
+    DEBUGUDP("UDP listen failed on port %u\r\n", _portRx);
+    return false;
+}
+
+// ========== APPLY CONFIG ==========
+// Применить текущий конфиг к сокету: переоткрыть listen на новом порту.
+// Требует активного подключения к сети (в AP-режиме сокет не поднимается).
+bool CLASS_MODULE_UDPBROADCAST::applyConfig() {
+    DEBUGUDP("%s\r\n", __FUNCTION__);
+    if (WiFi.status() != WL_CONNECTED) { return false; }
+    if (_isStarted) { stop(); }
+    return startSocket();
 }
 
 // ========== RESET SERVER STATE ==========

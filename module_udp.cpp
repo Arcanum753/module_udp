@@ -14,6 +14,7 @@
 #include <core_ntp/NtpClientLib.h>
 #include "core_json/core_json.h"
 #include "core_sys/core_sys.h"
+#include "core_terminal/core_terminal.h"
 #include "module_udp/module_udp.h"
 #include "core_sys/eertos.h"
 #include "common/common.h"
@@ -28,6 +29,7 @@ CLASS_MODULE_UDPBROADCAST::CLASS_MODULE_UDPBROADCAST(uint16_t portListen) {
     _isStarted = false;
     _isSending = false;
     _lastSendTime = 0;
+    _cfgDirty = false;
     resetServerState();
 }
 
@@ -38,17 +40,13 @@ void CLASS_MODULE_UDPBROADCAST::begin() {
     defaultConfigUDP();
     if ( load_config_UDP() == false) {save_configUDP();}
     DEBUGUDP("%s\r\n", __FUNCTION__);
-    if (_isStarted){    return;    }
-    
-    _portRx = _udpConfig.udpPortRx;
-    
-    if (_udp.listen(_portRx) == true) {
-        DEBUGUDP("UDP Listening on IP: %s and port %u\n\r",  WiFi.localIP().toString().c_str(), _portRx);
-        _isStarted = true;
-        resetServerState();
-        _udp.onPacket(processListenPacket);
-    }
-    SetTimerTask(broadcastTimer, SEC * MINUTES * module_udp.getTimeOut());
+
+    terminalRegister();
+}
+
+void CLASS_MODULE_UDPBROADCAST::begin(ModContext& ctx) {
+    (void)ctx;
+    begin();
 }
 
 // ============================================================
@@ -122,7 +120,7 @@ void CLASS_MODULE_UDPBROADCAST::get_configuration_html(AsyncWebServerRequest *re
         
         request->send_P(200, "text/html", Page_GeneralUdp);
         save_configUDP();
-        broadcastTimer();
+        applyConfig();
     }
     else {
         ESPHTTPServer.handleFileRead(request->url(), request);

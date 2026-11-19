@@ -2,6 +2,7 @@
 #define _MODUDP_h
 
 #include "main.h"
+#include "mod_context.h"
 #include "core_web/FSWebServerLib.h"
 
 #ifdef ESP32
@@ -31,7 +32,20 @@ public:
     CLASS_MODULE_UDPBROADCAST(uint16_t portListen);
 
     void begin();
+    void begin(ModContext& ctx);
     void web_Init(void);
+
+    // Поднятие сокета UDP. Вызывается из core_wifi при подключении к сети
+    // (регистрация терминала и загрузка конфига — в begin()).
+    bool startSocket();
+    // Применить текущий конфиг к сокету (stop + startSocket). Нужна сеть.
+    bool applyConfig();
+    // Сохранить конфиг на FS (сеть не требуется).
+    bool saveConfigNow()            { return save_configUDP(); }
+    // Отметить конфиг как изменённый в RAM (нужен udp apply).
+    void setConfigDirty()           { _cfgDirty = true; }
+    // Регистрация терминальной команды udp (вызывается из begin()).
+    void terminalRegister();
 
     // Публичное API
     void stop();
@@ -48,6 +62,11 @@ public:
     String jsonGet();
     uint8_t isStart();
 
+    // Конфиг изменён в RAM и ещё не применён к сокету (udp apply).
+    bool configDirtyGet()           { return _cfgDirty; }
+    // Число подряд пропущенных ответов сервера.
+    uint8_t missCountGet()          { return _missCount; }
+
     // Статус связи с сервером
     bool serverOnlineGet()          { return _serverOnline; }
     IPAddress serverIpGet()         { return _serverIp; }
@@ -57,6 +76,9 @@ public:
     strUdpConfig _udpConfig; // UDP configuration
 
 private:
+    // Терминальные команды (реализация — module_udp_terminal.cpp)
+    static void s_terminalCmd();
+
     // Версионные методы
     String getVersionStr();
     String getGeneratedTime();
@@ -93,6 +115,7 @@ private:
     uint32_t _lastContactEpoch;   // Unix-время контакта (если NTP синхронизирован)
     uint8_t _missCount;           // подряд пропущенных ответов сервера
     bool _awaitAck;               // ждём ACK на отправленную unicast-телеметрию
+    bool _cfgDirty;               // конфиг в RAM ещё не применён к сокету
 
     void resetServerState();
 
