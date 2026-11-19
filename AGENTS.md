@@ -13,7 +13,7 @@ UDP-обнаружение устройства в локальной сети �
 - **Registry:** `object=module_udp`, `define=MODULE_UDP`, `web=1`, `loop=0` (без `namespace`/`res`/`prio`)
 - **Только для платформы:** обе (ESP8266/ESP32)
 - **Зависит от модулей:** —
-- **Зависит от ядра:** `core_web`, `core_sys`, `core_json`, `core_wifi` (вызывает `begin()` при подключении), `core_terminal` (команды отладки)
+- **Зависит от ядра:** `core_web`, `core_sys`, `core_json`, `core_wifi` (вызывает `begin()` при подключении)
 
 ## Назначение
 
@@ -45,16 +45,15 @@ UDP-обнаружение устройства в локальной сети �
 
 ## Терминальные команды
 
-| Команда | Назначение | Доступность |
-|---------|-----------|-------------|
-| `udpp` / `udpc` / `udps` | отладка UDP-модуля | только `MODULE_UDP` |
-
-Команды реализованы в `core_terminal` и вызывают API модуля.
+Терминальные команды не реализованы (отдельная задача). Ранее упоминавшиеся
+`udpp`/`udpc`/`udps` в коде отсутствуют; при реализации регистрироваться должны в
+самом модуле через `TerminalRegisterModule(...)` в `begin()`.
 
 ## Слоистая структура
 
-Из `../../LAYERS.md`: `module_udp` — UDP broadcast/unicast, связь с сервером; сейчас define'ы,
-`strUdpConfig`, свободные функции; выделить `_types.h`, `_engine.cpp` + `_engine.h`.
+Из `../../LAYERS.md`: `module_udp` — UDP broadcast/unicast, связь с сервером.
+Слои выделены: `module_udp_types.h` (define'ы и `strUdpConfig`), `module_udp.cpp`
+(шаблонный блок), `module_udp_engine.cpp` + `module_udp_engine.h` (исполнительная логика).
 
 ## Критерии приёмки
 
